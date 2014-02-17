@@ -1,0 +1,78 @@
+<!doctype HTML>
+<meta charset = 'utf-8'>
+<html>
+  <head>
+    
+    <script src='http://code.jquery.com/jquery-1.9.1.min.js' type='text/javascript'></script>
+    <script src='http://code.highcharts.com/highcharts.js' type='text/javascript'></script>
+    <script src='http://code.highcharts.com/highcharts-more.js' type='text/javascript'></script>
+    <script src='http://code.highcharts.com/modules/exporting.js' type='text/javascript'></script>
+    
+    <style>
+    .rChart {
+      display: block;
+      margin-left: auto; 
+      margin-right: auto;
+      width: 800px;
+      height: 400px;
+    }  
+    </style>
+    
+  </head>
+  <body >
+    
+    <div id = 'chart11dce0230c2' class = 'rChart highcharts'></div>    
+    <script type='text/javascript'>
+    (function($){
+        $(function () {
+            var chart = new Highcharts.Chart({
+ "dom": "chart11dce0230c2",
+"width":            800,
+"height":            400,
+"credits": {
+ "href": null,
+"text": null 
+},
+"exporting": {
+ "enabled": false 
+},
+"title": {
+ "text": null 
+},
+"yAxis": [
+ {
+ "title": {
+ "text": "Tip" 
+} 
+} 
+],
+"series": [
+ {
+ "name": "Observations",
+"data": [
+ [ -0.6120858602388, 1.323635897951, 2.069474937542, 2.689267715669, 4.735925266823 ],
+[ -2.578791153417, -0.6383184324882, -0.03369274119692, 0.6774220542091, 2.517436893329 ] 
+] 
+} 
+],
+"xAxis": [
+ {
+ "categories": [ "Female", "Male" ],
+"title": {
+ "text": "Gender" 
+} 
+} 
+],
+"chart": {
+ "type": "boxplot",
+"renderTo": "chart11dce0230c2" 
+},
+"id": "chart11dce0230c2" 
+});
+        });
+    })(jQuery);
+</script>
+    
+    <script></script>    
+  </body>
+</html>

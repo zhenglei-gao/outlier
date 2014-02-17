@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Outlier Analysis</title>
+  <meta charset="utf-8">
+  <meta name="description" content="Outlier Analysis">
+  <meta name="author" content="Zhenglei Gao">
+  <meta name="generator" content="slidify" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/default.css" media="all" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/phone.css" 
+    media="only screen and (max-device-width: 480px)" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/slidify.css" >
+  <link rel="stylesheet" href="libraries/highlighters/highlight.js/css/tomorrow.css" />
+  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->  <link rel=stylesheet href="./assets/css/ribbons.css"></link>
+
+  
+  <!-- Grab CDN jQuery, fall back to local if offline -->
+  <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.7.min.js"></script>
+  <script>window.jQuery || document.write('<script src="libraries/widgets/quiz/js/jquery.js"><\/script>')</script> 
+  <script data-main="libraries/frameworks/io2012/js/slides" 
+    src="libraries/frameworks/io2012/js/require-1.0.8.min.js">
+  </script>
+  
+  
+
+</head>
+<body style="opacity: 0">
+  <slides class="layout-widescreen">
+    
+    <!-- LOGO SLIDE -->
+        <slide class="title-slide segue nobackground">
+  <hgroup class="auto-fadein">
+    <h1>Outlier Analysis</h1>
+    <h2>for historical control and treatment data for 14 Mallard Duck repros</h2>
+    <p>Zhenglei Gao<br/>Statistician/Modelling Expert, tier3 solutions</p>
+  </hgroup>
+  <article></article>  
+</slide>
+    
+
+    <!-- SLIDES -->
+    <slide class="" id="slide-1" style="background:;">
+  <article data-timings="">
+    <style>
+.title-slide {
+background-image: url(assets/img/tier3-back.png);
+}
+</style>
+
+<h2>Background</h2>
+
+<h3>1. Data and Issue</h3>
+
+<ul>
+<li></li>
+<li>Outlier pairs in the historical control and treatment data for 14 Mallard Duck repros?</li>
+<li>Other data characteristics: e.g. correlation in the egg pathway. </li>
+</ul>
+
+<h3>2. Outlier Detection Methods</h3>
+
+<ul>
+<li>Charts(Boxplots, Percentiles)</li>
+<li>Statistical Tests/Model based Methods</li>
+</ul>
+
+<h3>3. Outlier Treatment</h3>
+
+<ul>
+<li>Learn the story behind the &quot;outlier&quot;, influential or not? spurious, or just an extreme point?</li>
+<li>Alternative methods robust to outliers or models incoporating the effect caused by outliers.</li>
+<li>Eliminate the outliers with clear statement of reasons.</li>
+</ul>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-2" style="background:;">
+  <hgroup>
+    <h2>Boxplot</h2>
+  </hgroup>
+  <article data-timings="">
+    
+<div style='float:left;width:50%;'>
+  <h3>Advantages:</h3>
+
+<ul>
+<li><p>Non-parametric; No assumptions of the underlying statistical distribution.</p></li>
+<li><p>A quick way of examining one or more sets of data graphically: indicating the spread and skewness in the data and identifying outliers.</p></li>
+</ul>
+
+</div>
+<div style='float:right;width:44%;'>
+  <h3>How to read a boxplot?</h3>
+
+<pre><code>## Loading required package: TeachingDemos
+</code></pre>
+
+<p><img src="assets/fig/unnamed-chunk-1.png" alt="plot of chunk unnamed-chunk-1"> </p>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-3" style="background:;">
+  <hgroup>
+    <h3>Boxplot vs Percentiles</h3>
+  </hgroup>
+  <article data-timings="">
+    
+<div style='float:left;width:50%;'>
+  <p>Figure 1: Boxplot vs. Percentiles</p>
+
+<p><img src="assets/fig/unnamed-chunk-2.png" alt="plot of chunk unnamed-chunk-2"> </p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <p>Reproducible R Script:</p>
+
+<pre><code class="r">x &lt;- rnorm(1000)
+a &lt;- boxplot.with.outlier.label(x, 
+    label_name = formatC(x, digits = 3), 
+    range = c(1.5, 3))
+abline(h = quantile(x, c(0.95, 
+    0.05)), col = 2)
+text(1.5, quantile(x, c(0.95, 
+    0.05)) + 0.2, c(&quot;95%&quot;, &quot;5%&quot;), 
+    col = 2)
+abline(h = quantile(x, c(0.99, 
+    0.01)), col = 3)
+text(0.5, quantile(x, c(0.99, 
+    0.01)) + 0.2, c(&quot;99%&quot;, &quot;1%&quot;), 
+    col = 3)
+</code></pre>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Demonstrate Calculation for Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>1. Read in data</h3>
+
+<pre><code class="r">setwd(&quot;C:/Users/z.gao/Documents/Projects/outlier2014/Outlier/&quot;)
+require(XLConnect)
+wb1 &lt;- loadWorkbook(&quot;data/Penflufen Mallard Repro Data (3Feb14).xlsx&quot;)
+setMissingValue(wb1, value = &quot;.&quot;)
+sheetsnames &lt;- getSheets(wb1)
+Mallard = readWorksheet(wb1, sheet = &quot;Mallard SAS Data&quot;, startRow = 9, endRow = 72, 
+    useCachedValues = TRUE, header = FALSE)
+colnames = readWorksheet(wb1, sheet = &quot;Mallard SAS Data&quot;, startRow = 7, endRow = 8, 
+    useCachedValues = FALSE, header = FALSE)
+colnames &lt;- apply(colnames, 2, function(x) paste(x[1], x[2]))
+colnames[2] &lt;- &quot;Treatment&quot;
+names(Mallard) &lt;- colnames
+### 
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Demonstrate Calculation for Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>1. Clean the data</h3>
+
+<ul>
+<li>Check egg pathway data:A &quot;0&quot; should followed by NA entries in the pathway. </li>
+</ul>
+
+<p>For example, if no eggs set, the entries for viable embryos, live 3wk embryos, hatchlings, 14 d old survivors should be NA. </p>
+
+<ul>
+<li>Check egg quality data: </li>
+<li>if no eggs laid or all eggs were set, egg shell strength and thickness should be NA.</li>
+<li>if no hatchlings, hatchling weight should be NA.</li>
+<li>if no 14 d old survivors, 14 d old survivors wt should be NA. </li>
+</ul>
+
+<pre><code class="r">Mallard &lt;- check_eggpathway(Mallard)
+Mallard &lt;- check_eggquality(Mallard)
+# cache(&#39;Mallard&#39;)
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-6" style="background:;">
+  <hgroup>
+    <h2>Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>2. Study the data first by exploratory data analysis</h3>
+
+<p><img src="assets/fig/unnamed-chunk-10.png" title="plot of chunk unnamed-chunk-10" alt="plot of chunk unnamed-chunk-10" style="display: block; margin: auto;" /></p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-7" style="background:;">
+  <hgroup>
+    <h2>Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>2. Study the data first by exploratory data analysis</h3>
+
+<div style='float:left;width:50%;'>
+  <p><img src="assets/fig/unnamed-chunk-12.png" alt="plot of chunk unnamed-chunk-12"> </p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <pre><code class="r">require(reshape2)
+lMallard &lt;- melt(Mallard, id.vars = 1:3)
+label &lt;- getlabel(lMallard)
+require(ggplot2)
+p &lt;- ggplot(data = lMallard, 
+    aes(x = Treatment, y = value, 
+        fill = Treatment)) + 
+    stat_boxplot(geom = &quot;errorbar&quot;) + 
+    geom_boxplot() + facet_wrap(~variable, 
+    scale = &quot;free&quot;) + ggtitle(&quot;Boxplot of Penflufen Mallard Data&quot;)
+print(p)
+</code></pre>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-8" style="background:;">
+  <hgroup>
+    <h2>Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>3. Identify outliers and do further calculations.</h3>
+
+<div style='float:left;width:50%;'>
+  <p><video   controls="controls" ><source src="assets/fig/unnamed-chunk-16.ogg" />video of chunk unnamed-chunk-16</video></p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <pre><code class="r">
+endpoints &lt;- names(Mallard)[4:19]
+for (i in 4:19) {
+    boxplot.with.outlier.label(Mallard[, 
+        i] ~ Mallard$Treatment, 
+        label_name = Mallard[!is.na(Mallard[, 
+            i]), &quot;Cage No.&quot;], 
+        push_text_right = 1.5, 
+        main = endpoints[i - 
+            3], range = c(1.5, 
+            2.5))
+}
+</code></pre>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>3. Identify outliers and do further calculations.</h3>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-10" style="background:;">
+  <hgroup>
+    <h2>Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    
+<div style='float:left;width:50%;'>
+  <p><img src="assets/fig/unnamed-chunk-19.svg" alt="plot of chunk unnamed-chunk-19"> </p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <p><img src="assets/fig/unnamed-chunk-20.svg" alt="plot of chunk unnamed-chunk-20"> </p>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Summary Tables for Penflufen</h2>
+  </hgroup>
+  <article data-timings="">
+    <table><thead>
+<tr>
+<th align="center">Treatment</th>
+<th align="center">endpoint</th>
+<th align="center">no.outlier</th>
+<th align="center">outlier</th>
+</tr>
+</thead><tbody>
+<tr>
+<td align="center">A</td>
+<td align="center">Eggs Laid</td>
+<td align="center">2</td>
+<td align="center">3,14</td>
+</tr>
+<tr>
+<td align="center">B</td>
+<td align="center">Eggs Laid</td>
+<td align="center">1</td>
+<td align="center">115</td>
+</tr>
+<tr>
+<td align="center">C</td>
+<td align="center">Eggs Laid</td>
+<td align="center">0</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="center">D</td>
+<td align="center">Eggs Laid</td>
+<td align="center">0</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="center">A</td>
+<td align="center">Viable Embryos</td>
+<td align="center">2</td>
+<td align="center">3,14</td>
+</tr>
+<tr>
+<td align="center">B</td>
+<td align="center">Viable Embryos</td>
+<td align="center">1</td>
+<td align="center">115</td>
+</tr>
+<tr>
+<td align="center">C</td>
+<td align="center">Viable Embryos</td>
+<td align="center">0</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="center">D</td>
+<td align="center">Viable Embryos</td>
+<td align="center">0</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="center">A</td>
+<td align="center">Live 3wk Embryos</td>
+<td align="center">0</td>
+<td align="center"></td>
+</tr>
+<tr>
+<td align="center">B</td>
+<td align="center">Live 3wk Embryos</td>
+<td align="center">1</td>
+<td align="center">116</td>
+</tr>
+<tr>
+<td align="center">C</td>
+<td align="center">Live 3wk Embryos</td>
+<td align="center">2</td>
+<td align="center">211,212</td>
+</tr>
+<tr>
+<td align="center">D</td>
+<td align="center">Live 3wk Embryos</td>
+<td align="center">3</td>
+<td align="center">308,310,315</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>1. Graphical overview of the data by Study</h3>
+
+<p><video   controls="controls" ><source src="assets/fig/unnamed-chunk-23.ogg" />video of chunk unnamed-chunk-23</video></p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14....</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>2. Outliers in combined historic data.</h3>
+
+<p><video   controls="controls" ><source src="assets/fig/unnamed-chunk-25.ogg" />video of chunk unnamed-chunk-25</video></p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>3. Summary table of the outlier information</h3>
+
+<p>Suppose we have three studies \(S_1, S_2, S_3\) with \(n_1=15,n_2=16,n_3=15\) pairs respectively. Using boxplot stats for each study, we identified \(o_1=0\) outliers in \(S_1\), \(o_2=1\) outliers in \(S_2\), \(o_3=3\) outliers in \(S_3\). Using boxplot stats for all three studies pooled together, we identified \(op_1=0\) outliers in \(S_1\), \(op_2=1\) outliers in \(S_2\), \(op_3=0\) outliers in \(S_3\). </p>
+
+<table><thead>
+<tr>
+<th align="center">Types of Summary Statistics</th>
+<th align="center">Pooling Studies</th>
+<th align="center">Each Study Seperately</th>
+</tr>
+</thead><tbody>
+<tr>
+<td align="center">N1= # of studies with outlier pairs</td>
+<td align="center">1</td>
+<td align="center">2</td>
+</tr>
+<tr>
+<td align="center">N2= # of outlier pairs</td>
+<td align="center">\(op_1+op_2+op_3\)</td>
+<td align="center">\(o_1+o_2+o_3\)</td>
+</tr>
+<tr>
+<td align="center">F1= % of studies with outlier pairs</td>
+<td align="center">\(1/3*100\)</td>
+<td align="center">$2/3*100 $</td>
+</tr>
+<tr>
+<td align="center">F2= % of all outlier pairs in all pairs</td>
+<td align="center">\(\frac{op_1+op_2+op_3}{n_1+n_2+n_3}\)</td>
+<td align="center">\(\frac{o_1+o_2+o_3}{n_1+n_2+n_3}\)</td>
+</tr>
+<tr>
+<td align="center">F3= average % of outliers in each study</td>
+<td align="center">\((\frac{op_1}{n_1}+\frac{op_2}{n_2}+\frac{op_3}{n_3})/3*100\)</td>
+<td align="center">\((\frac{o_1}{n_1}+\frac{o_2}{n_2}+\frac{o_3}{n_3})/3*100\)</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS Studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>3. Outlier pairs information for historical control data.</h3>
+
+<table><thead>
+<tr>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">Sep</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">Pool</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+</tr>
+</thead><tbody>
+<tr>
+<td align="center"></td>
+<td align="center">F1</td>
+<td align="center">F2</td>
+<td align="center">F3</td>
+<td align="center">N1</td>
+<td align="center">N2</td>
+<td align="center">F1</td>
+<td align="center">F2</td>
+<td align="center">F3</td>
+<td align="center">N1</td>
+<td align="center">N2</td>
+</tr>
+<tr>
+<td align="center"><strong>Eggs Laid</strong></td>
+<td align="center">50</td>
+<td align="center">5.687</td>
+<td align="center">5.714</td>
+<td align="center">7</td>
+<td align="center">12</td>
+<td align="center">35.71</td>
+<td align="center">3.318</td>
+<td align="center">3.304</td>
+<td align="center">5</td>
+<td align="center">7</td>
+</tr>
+<tr>
+<td align="center"><strong>Eggs Cracked</strong></td>
+<td align="center">92.86</td>
+<td align="center">12.92</td>
+<td align="center">12.87</td>
+<td align="center">13</td>
+<td align="center">27</td>
+<td align="center">100</td>
+<td align="center">21.53</td>
+<td align="center">21.58</td>
+<td align="center">14</td>
+<td align="center">45</td>
+</tr>
+<tr>
+<td align="center"><strong>Eggs Set</strong></td>
+<td align="center">21.43</td>
+<td align="center">2.885</td>
+<td align="center">2.891</td>
+<td align="center">3</td>
+<td align="center">6</td>
+<td align="center">14.29</td>
+<td align="center">0.9615</td>
+<td align="center">0.9864</td>
+<td align="center">2</td>
+<td align="center">2</td>
+</tr>
+<tr>
+<td align="center"><strong>Viable Embryos</strong></td>
+<td align="center">42.86</td>
+<td align="center">5.797</td>
+<td align="center">6.006</td>
+<td align="center">6</td>
+<td align="center">12</td>
+<td align="center">42.86</td>
+<td align="center">6.763</td>
+<td align="center">6.954</td>
+<td align="center">6</td>
+<td align="center">14</td>
+</tr>
+<tr>
+<td align="center"><strong>Live 3wk Embryos</strong></td>
+<td align="center">57.14</td>
+<td align="center">5.556</td>
+<td align="center">5.782</td>
+<td align="center">8</td>
+<td align="center">11</td>
+<td align="center">35.71</td>
+<td align="center">2.525</td>
+<td align="center">2.82</td>
+<td align="center">5</td>
+<td align="center">5</td>
+</tr>
+<tr>
+<td align="center"><strong>Number of Hatchlings</strong></td>
+<td align="center">21.43</td>
+<td align="center">2.538</td>
+<td align="center">2.744</td>
+<td align="center">3</td>
+<td align="center">5</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="center"><strong>14 d old survivors</strong></td>
+<td align="center">50</td>
+<td align="center">5.687</td>
+<td align="center">5.714</td>
+<td align="center">7</td>
+<td align="center">12</td>
+<td align="center">35.71</td>
+<td align="center">3.318</td>
+<td align="center">3.304</td>
+<td align="center">5</td>
+<td align="center">7</td>
+</tr>
+<tr>
+<td align="center"><strong>Egg shell thickness</strong></td>
+<td align="center">21.43</td>
+<td align="center">2.913</td>
+<td align="center">2.976</td>
+<td align="center">3</td>
+<td align="center">6</td>
+<td align="center">21.43</td>
+<td align="center">1.456</td>
+<td align="center">1.548</td>
+<td align="center">3</td>
+<td align="center">3</td>
+</tr>
+<tr>
+<td align="center"><strong>Egg shell strength</strong></td>
+<td align="center">21.43</td>
+<td align="center">2.899</td>
+<td align="center">2.857</td>
+<td align="center">3</td>
+<td align="center">6</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS Studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>3. Outliers information for historical NOEC data.</h3>
+
+<table><thead>
+<tr>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">Sep</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+<th align="center">Pool</th>
+<th align="center">&nbsp;</th>
+<th align="center">&nbsp;</th>
+</tr>
+</thead><tbody>
+<tr>
+<td align="center">F1</td>
+<td align="center">F2</td>
+<td align="center">F3</td>
+<td align="center">N1</td>
+<td align="center">N2</td>
+<td align="center">F1</td>
+<td align="center">F2</td>
+<td align="center">F3</td>
+<td align="center">N1</td>
+<td align="center">N2</td>
+</tr>
+<tr>
+<td align="center">42.86</td>
+<td align="center">3.333</td>
+<td align="center">3.333</td>
+<td align="center">6</td>
+<td align="center">7</td>
+<td align="center">57.14</td>
+<td align="center">4.286</td>
+<td align="center">4.256</td>
+<td align="center">8</td>
+<td align="center">9</td>
+</tr>
+<tr>
+<td align="center">64.29</td>
+<td align="center">7.729</td>
+<td align="center">7.975</td>
+<td align="center">9</td>
+<td align="center">16</td>
+<td align="center">100</td>
+<td align="center">24.64</td>
+<td align="center">24.52</td>
+<td align="center">14</td>
+<td align="center">51</td>
+</tr>
+<tr>
+<td align="center">28.57</td>
+<td align="center">2.439</td>
+<td align="center">2.415</td>
+<td align="center">4</td>
+<td align="center">5</td>
+<td align="center">28.57</td>
+<td align="center">2.439</td>
+<td align="center">2.351</td>
+<td align="center">4</td>
+<td align="center">5</td>
+</tr>
+<tr>
+<td align="center">57.14</td>
+<td align="center">8.293</td>
+<td align="center">8.349</td>
+<td align="center">8</td>
+<td align="center">17</td>
+<td align="center">71.43</td>
+<td align="center">9.756</td>
+<td align="center">9.614</td>
+<td align="center">10</td>
+<td align="center">20</td>
+</tr>
+<tr>
+<td align="center">50</td>
+<td align="center">7.179</td>
+<td align="center">7.452</td>
+<td align="center">7</td>
+<td align="center">14</td>
+<td align="center">50</td>
+<td align="center">5.128</td>
+<td align="center">4.976</td>
+<td align="center">7</td>
+<td align="center">10</td>
+</tr>
+<tr>
+<td align="center">57.14</td>
+<td align="center">6.736</td>
+<td align="center">6.845</td>
+<td align="center">8</td>
+<td align="center">13</td>
+<td align="center">35.71</td>
+<td align="center">2.591</td>
+<td align="center">2.641</td>
+<td align="center">5</td>
+<td align="center">5</td>
+</tr>
+<tr>
+<td align="center">42.86</td>
+<td align="center">3.333</td>
+<td align="center">3.333</td>
+<td align="center">6</td>
+<td align="center">7</td>
+<td align="center">57.14</td>
+<td align="center">4.286</td>
+<td align="center">4.256</td>
+<td align="center">8</td>
+<td align="center">9</td>
+</tr>
+<tr>
+<td align="center">28.57</td>
+<td align="center">3.483</td>
+<td align="center">3.372</td>
+<td align="center">4</td>
+<td align="center">7</td>
+<td align="center">7.143</td>
+<td align="center">0.4975</td>
+<td align="center">0.4762</td>
+<td align="center">1</td>
+<td align="center">1</td>
+</tr>
+<tr>
+<td align="center">28.57</td>
+<td align="center">1.97</td>
+<td align="center">1.875</td>
+<td align="center">4</td>
+<td align="center">4</td>
+<td align="center">14.29</td>
+<td align="center">0.9852</td>
+<td align="center">0.9864</td>
+<td align="center">2</td>
+<td align="center">2</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-17" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS Studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>4. Correlation between eggpath endpoints:</h3>
+
+<div style='float:left;width:50%;'>
+  <p><img src="assets/fig/unnamed-chunk-29.svg" alt="plot of chunk unnamed-chunk-29"> </p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <p><img src="assets/fig/unnamed-chunk-30.svg" alt="plot of chunk unnamed-chunk-30"> </p>
+
+<h2>Control and NOEC data for 14 BCS Studies</h2>
+
+<h3>4. Correlation between hatchling biomass and other factors:</h3>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-18" style="background:;">
+  <hgroup>
+    <h2>Control and NOEC data for 14 BCS Studies</h2>
+  </hgroup>
+  <article data-timings="">
+    <h3>4. Correlation in all treatment groups:</h3>
+
+<div style='float:left;width:50%;'>
+  <p><img src="assets/fig/unnamed-chunk-33.svg" alt="plot of chunk unnamed-chunk-33"> </p>
+
+</div>
+<div style='float:right;width:44%;'>
+  <p><img src="assets/fig/unnamed-chunk-34.svg" alt="plot of chunk unnamed-chunk-34"> </p>
+
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Appendix A: Methods of Statistical Outlier Analysis</h2>
+  </hgroup>
+  <article data-timings="">
+    <ul>
+<li>Charts: extreme values.</li>
+<li>Local Outlier Factor(LOF): the points in a much sparser region than their neighbors.</li>
+<li>Clustering: subjects not assigned to any clusters.</li>
+<li>Statistical Tests/Model Based Methods</li>
+<li>The Lund test for outliers was based on fitting the linear model</li>
+<li>Grubbs&#39; test is based on the assumption of normality.</li>
+<li>Dixon&#39;s test allows us to examine if one (and only one) observation from a small set of replicate observations (typically 3 to 25) can be &quot;legitimately&quot; rejected or not.</li>
+<li><p>Bonferroni Outlier Test reports the Bonferroni p-values for Studentized residuals in linear and generalized linear models, based on a t-test for linear models and normal-distribution test for generalized linear models.</p></li>
+<li><p>Others</p></li>
+</ul>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Lund test</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>The Lund test for outliers was based on fitting the linear model (See Lund, R. E. 1975). Lund suggested to test the studentized residuals against an appropriate t-value (the residuals are assumed as approximately distributed according to a Student&#39;s t-distribution). He suggests to test with a Bonferroni adjusted alpha, i.e. with quantile of the t-distribution qt((1-alpha/(2*n)),df) where n is the number of residuals and df the error degrees of freedom. This is similar to Bonferroni-adjusted outlier test.</p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Grubb&#39;s test</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>Grubbs&#39; test is based on the assumption of normality. That is, one should first verify that the data can be reasonably approximated by a normal distribution before applying the Grubbs&#39; test. The general formula for Grubbs&#39; test statistic is defined as:</p>
+
+<p>\[G=\frac{\max(x_i-\bar x)}{s}\]</p>
+
+<p>The Grubbs test statistic is the largest absolute deviation from the sample mean in units of the sample standard deviation. </p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Dixon&#39;s test</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>Dixon&#39;s test allows us to examine if one (and only one) observation from a small set of replicate observations (typically 3 to 25) can be &quot;legitimately&quot; rejected or not. </p>
+
+<p>The test is very simple and it is applied as follows:</p>
+
+<ol>
+<li><p>The N values comprising the set of observations under examination are arranged in ascending order: \(x_1 < x_2 < . . . < x_N\)</p></li>
+<li><p>The statistic experimental Q-value (Qexp) is calculated. This is a ratio defined as the difference of the suspect value from its nearest one divided by the range of the values (Q: rejection quotient). Thus, for testing \(x_1\) or \(x_N\) (as possible outliers) we use the following Qexp values:</p></li>
+</ol>
+
+<p>\[
+Q_N=\frac{X_N-X_{N-1}}{X_N-X_1}
+\]
+\[ Q_1=\frac{X_2-X_1}{X_N-X_1}
+\]</p>
+
+<p>(3) The obtained Qexp value is compared to a critical Q-value (Qcrit) found in tables. This critical value should correspond to the confidence level (CL) we have decided to run the test (usually: CL=95%).</p>
+
+<p>Note: Q-test is a significance test. For more information on terms and concepts related to significance tests (e.g. null hypothesis, confidence levels, probabilities of type I and type II errors), see the applet: Student&#39;s t-test:  Comparison of two means.</p>
+
+<p>(4) If Qexp &gt; Qcrit, then the suspect value can be characterized as an outlier and it can be rejected, if not, the suspect value must be retained and used in all subsequent calculations.</p>
+
+<p>The  null hypothesis associated to Q-test is as follows: &quot;There is no a significant difference between the suspect value and the rest of them, any differences must be exclusively attributed to random errors&quot;.</p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Bonferroni Outlier Test</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>Bonferroni Outlier Test reports the Bonferroni p-values for Studentized residuals in linear and generalized linear models, based on a t-test for linear models and normal-distribution test for generalized linear models.</p>
+
+<p>Since we are selecting the furthest outlier, it is not legitimate to use a simple t-test. We would expect that 5% of the studentized
+residuals would be beyond t.025± 2 by chance alone. To remedy this we can make a Bonferroni adjustment to the p-value. The Bonferroni p-value for the largest outlier is \(p=2np_0\), where \(p_0\) is the unadjusted p-value from a t-test with \(n-k-2\) degrees of freedom.</p>
+
+<p>Note that  we could also fit a random intercept model instead of a fixed effect model.</p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Other Outlier Detection Methods</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>The methods listed in the following may be overshoots for our problem.</p>
+
+<ul>
+<li>Distribution-based:
+Using a subset of the data, the parameters for a model distribution are estimated using regression of the sorted data on their QQ-plot positions. A value in the data is an outlier when it is unlikely to be drawn from the estimated distribution. There are two methods to determine the &quot;unlikelyness&quot;. The first, called &quot;Method I&quot;, determines the value above which less than \(\rho\) observations are expected, given the total number of observations in the data. Here \(\rho\) is a parameter which should have a value of 1 or less. The second notion of unlikelyness uses the fit residuals. Extremely large or small values are outliers when their residuals are above or below a confidence limit, to be determined by the researcher.</li>
+<li>Quantile Regression Methods</li>
+<li>Multivariate methods based on ordered robust mahalanobis distances.</li>
+<li>Train an unsupervised Random Forest on the data and use the object proximity measure to detect outliers  <a href="http://www.stat.berkeley.edu/%7Ebreiman/RandomForests/cc_home.htm#outliers">link</a></li>
+<li>Multivariate robust estimators<a href="http://cran.r-project.org/web/packages/rrcov/vignettes/rrcov.pdf">link</a></li>
+<li>and more!</li>
+</ul>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Appendix B: Outlier Treatment</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>If there are outliers, what do we do?</p>
+
+<ol>
+<li><p>Learn as much as you can about the &quot;story&quot; behind the data and understand why there is an outlier.</p></li>
+<li><p>Find a method that is not sensitive to outliers. For example, alternatives to Pearson&#39;s correlation coefficient include Spearman&#39;s rank correlation coefficient and Kendall&#39;s coefficient of concordance , although neither of them works any better here. In cases where the cause of the outliers is known, it may be possible to incorporate this effect into the model structure, for example by using a hierarchical Bayes model or a mixture model</p></li>
+<li><p>Adjust the outliers when appropriate (data trimming).</p></li>
+<li><p>If all else fails, eliminate the outlier(s).</p></li>
+</ol>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <article data-timings="">
+    <pre><code class="r">setwd(&quot;mydeck&quot;)
+require(slidify)
+slidify(&quot;mydeck/index.Rmd&quot;)
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+    <slide class="backdrop"></slide>
+  </slides>
+  <div class="pagination pagination-small" id='io2012-ptoc' style="display:none;">
+    <ul>
+      <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=1 title=''>
+         1
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=2 title='Boxplot'>
+         2
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=3 title='Boxplot vs Percentiles'>
+         3
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=4 title='Demonstrate Calculation for Penflufen'>
+         4
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=5 title='Demonstrate Calculation for Penflufen'>
+         5
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=6 title='Penflufen'>
+         6
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=7 title='Penflufen'>
+         7
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=8 title='Penflufen'>
+         8
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=9 title='Penflufen'>
+         9
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=10 title='Penflufen'>
+         10
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=11 title='Summary Tables for Penflufen'>
+         11
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=12 title='Control and NOEC data for 14 BCS studies'>
+         12
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=13 title='Control and NOEC data for 14....'>
+         13
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=14 title='Control and NOEC data for 14 BCS studies'>
+         14
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=15 title='Control and NOEC data for 14 BCS Studies'>
+         15
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=16 title='Control and NOEC data for 14 BCS Studies'>
+         16
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=17 title='Control and NOEC data for 14 BCS Studies'>
+         17
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=18 title='Control and NOEC data for 14 BCS Studies'>
+         18
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=19 title='Appendix A: Methods of Statistical Outlier Analysis'>
+         19
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=20 title='Lund test'>
+         20
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=21 title='Grubb&#39;s test'>
+         21
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=22 title='Dixon&#39;s test'>
+         22
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=23 title='Bonferroni Outlier Test'>
+         23
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=24 title='Other Outlier Detection Methods'>
+         24
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=25 title='Appendix B: Outlier Treatment'>
+         25
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=26 title=''>
+         26
+      </a>
+    </li>
+  </ul>
+  </div>  <!--[if IE]>
+    <script 
+      src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1/CFInstall.min.js">  
+    </script>
+    <script>CFInstall.check({mode: 'overlay'});</script>
+  <![endif]-->
+</body>
+  <!-- Load Javascripts for Widgets -->
+  
+  <!-- MathJax: Fall back to local if CDN offline but local image fonts are not supported (saves >100MB) -->
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [['$','$'], ['\\(','\\)']],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <!-- <script src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  </script> -->
+  <script>window.MathJax || document.write('<script type="text/x-mathjax-config">MathJax.Hub.Config({"HTML-CSS":{imageFont:null}});<\/script><script src="libraries/widgets/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"><\/script>')
+</script>
+<!-- LOAD HIGHLIGHTER JS FILES -->
+  <script src="libraries/highlighters/highlight.js/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <!-- DONE LOADING HIGHLIGHTER JS FILES -->
+   
+  </html>

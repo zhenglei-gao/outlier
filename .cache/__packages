@@ -1,0 +1,12 @@
+base
+ggplot2
+lubridate
+pander
+plyr
+ProjectTemplate
+reshape
+reshape2
+slidify
+stringr
+TeachingDemos
+testthat

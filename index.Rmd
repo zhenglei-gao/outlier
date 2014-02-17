@@ -1,0 +1,675 @@
+---
+title       : Outlier Analysis
+subtitle    : for historical control and treatment data for 14 Mallard Duck repros
+author      : Zhenglei Gao
+job         : Statistician/Modelling Expert, tier3 solutions
+framework   : io2012      # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : [mathjax]            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+---
+
+<style>
+.title-slide {
+background-image: url(assets/img/tier3-back.png);
+}
+</style>
+
+## Background
+
+### 1. Data and Issue
+* 
+* Outlier pairs in the historical control and treatment data for 14 Mallard Duck repros?
+* Other data characteristics: e.g. correlation in the egg pathway. 
+
+### 2. Outlier Detection Methods
+
+* Charts(Boxplots, Percentiles)
+* Statistical Tests/Model based Methods
+
+### 3. Outlier Treatment
+
+* Learn the story behind the "outlier", influential or not? spurious, or just an extreme point?
+* Alternative methods robust to outliers or models incoporating the effect caused by outliers.
+* Eliminate the outliers with clear statement of reasons.
+
+
+
+--- &twocol w1:40% w2:60%
+
+## Boxplot
+
+*** =left
+
+### Advantages:
+
+* Non-parametric; No assumptions of the underlying statistical distribution.
+
+* A quick way of examining one or more sets of data graphically: indicating the spread and skewness in the data and identifying outliers.
+
+*** =right
+
+### How to read a boxplot? 
+
+```{r echo=FALSE,include=TRUE,fig.show="hold",fig.width=6,fig.height=6}
+x <- rnorm(1000)
+source("../lib/outlier.r")
+a<- boxplot.with.outlier.label(x,label_name=formatC(x,digits=3),range=c(1.5,3))
+text(1.4,a$boxdata$stats,c("Minimum","Lower Quartile","Median","Upper Quartile","Maximum"))
+text(0.7,quantile(x,c(0.999,0.001)),c("Outlier,>1.5*IQR + Q3","Outlier, > -1.5*IQR + Q1"),col=2)
+```
+
+--- &twocol w1:40% w2:60%
+
+
+### Boxplot vs Percentiles
+
+
+*** =left
+
+Figure 1: Boxplot vs. Percentiles
+
+```{r echo=FALSE,include=TRUE,fig.show="hold"}
+x <- rnorm(1000)
+source("../lib/outlier.r")
+a<- boxplot.with.outlier.label(x,label_name=formatC(x,digits=3),range=c(1.5,3))
+abline(h=quantile(x,c(0.95,0.05)),col=2)
+text(1.5,quantile(x,c(0.95,0.05))+0.2,c("95%","5%"),col=2)
+abline(h=quantile(x,c(0.99,0.01)),col=3)
+text(0.5,quantile(x,c(0.99,0.01))+0.2,c("99%","1%"),col=3)
+#dev.print(pdf,"boxplot_percentiles.pdf")
+# x <- rlnorm(1000)
+# boxplot(x)
+# abline(h=quantile(x,c(0.95,0.05)),col=2)
+# abline(h=quantile(x,c(0.99,0.01)),col=3)
+```
+
+
+*** =right
+
+Reproducible R Script:
+
+```{r include=FALSE,cache=FALSE}
+#
+source("../lib/outlier.r")
+#require(knitr)
+## Wrap long lines
+# hook_output = knit_hooks$get("output")
+# knit_hooks$set(output = function(x, options) {
+#     # this hook is used only when the linewidth option is not NULL
+#     if (!is.null(n <- options$linewidth)) {
+#         x = knitr:::split_lines(x)
+#         # any lines wider than n should be wrapped
+#         if (any(nchar(x) > n)) 
+#             x = strwrap(x, width = n)
+#         x = paste(x, collapse = "\n")
+#     }
+#     hook_output(x, options)
+# })
+options(width = 28)
+require(pander)
+```
+
+```{r echo=FALSE, cache=FALSE}
+options(width = 28)
+```
+
+```{r eval=FALSE}
+x <- rnorm(1000)
+a<- boxplot.with.outlier.label(x,label_name=formatC(x,digits=3),range=c(1.5,3))
+abline(h=quantile(x,c(0.95,0.05)),col=2)
+text(1.5,quantile(x,c(0.95,0.05))+0.2,c("95%","5%"),col=2)
+abline(h=quantile(x,c(0.99,0.01)),col=3)
+text(0.5,quantile(x,c(0.99,0.01))+0.2,c("99%","1%"),col=3)
+```
+
+```{r eval=FALSE,include=FALSE}
+#dev.print(pdf,"boxplot_percentiles.pdf")
+# x <- rlnorm(1000)
+# boxplot(x)
+# abline(h=quantile(x,c(0.95,0.05)),col=2)
+# abline(h=quantile(x,c(0.99,0.01)),col=3)
+```
+
+--- .class #id 
+
+## Demonstrate Calculation for Penflufen
+
+### 1. Read in data
+
+```{r echo=FALSE, cache=FALSE}
+options(width = 81)
+```
+
+```{r read,eval=FALSE}
+setwd("C:/Users/z.gao/Documents/Projects/outlier2014/Outlier/")
+require(XLConnect)
+wb1 <- loadWorkbook("data/Penflufen Mallard Repro Data (3Feb14).xlsx")
+setMissingValue(wb1, value = ".")
+sheetsnames <- getSheets(wb1)
+Mallard = readWorksheet(wb1, sheet = "Mallard SAS Data",startRow=9,endRow=72,useCachedValues=TRUE,header=FALSE)
+colnames = readWorksheet(wb1, sheet = "Mallard SAS Data",startRow=7,endRow=8,useCachedValues=FALSE,header=FALSE)
+colnames <- apply(colnames,2,function(x) paste(x[1],x[2]))
+colnames[2] <- "Treatment"
+names(Mallard) <- colnames
+### 
+```
+
+--- .class #id 
+
+## Demonstrate Calculation for Penflufen
+
+### 1. Clean the data
+
+* Check egg pathway data:A "0" should followed by NA entries in the pathway. 
+
+For example, if no eggs set, the entries for viable embryos, live 3wk embryos, hatchlings, 14 d old survivors should be NA. 
+* Check egg quality data: 
+* if no eggs laid or all eggs were set, egg shell strength and thickness should be NA.
+* if no hatchlings, hatchling weight should be NA.
+* if no 14 d old survivors, 14 d old survivors wt should be NA. 
+
+```{r echo=FALSE, cache=FALSE}
+options(width = 81)
+```
+
+```{r clean,eval=FALSE}
+Mallard <- check_eggpathway(Mallard)
+Mallard <- check_eggquality(Mallard)
+#cache("Mallard")
+### 
+```
+
+```{r include=FALSE,results='hide',message=FALSE,cache=FALSE}
+setwd("E:/outlier2014/Outlier")
+require(ProjectTemplate)
+load.project()
+```
+
+
+--- 
+
+## Penflufen
+
+### 2. Study the data first by exploratory data analysis
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE,fig.width=11,fig.align='center'}
+
+require(reshape2)
+if(!is.null(Mallard$"Hatchling biomass")) Mallard$"Hatchling biomass" <- NULL
+lMallard <- melt(Mallard,id.vars=1:3)
+require(ggplot2)
+p <- ggplot(data=lMallard,aes(x=Treatment,y=value,fill=Treatment))+stat_boxplot(geom ='errorbar')+geom_boxplot()+geom_point(pch=".")+facet_wrap(~variable,scales="free",ncol=4)+ggtitle("Boxplot of Penflufen Mallard Data")+theme(axis.text=element_text(size=12),axis.title=element_text(size=12,face="bold"))
+print(p)
+```
+
+--- &twocol w1:70% w2:30%
+
+## Penflufen
+
+### 2. Study the data first by exploratory data analysis
+
+*** =left
+
+```{r echo=FALSE, cache=FALSE}
+options(width = 27)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+print(p)
+```
+
+*** =right
+
+
+```{r eval=FALSE}
+require(reshape2)
+lMallard <- melt(Mallard,id.vars=1:3)
+label <- getlabel(lMallard)
+require(ggplot2)
+p <- ggplot(data=lMallard,aes(x=Treatment,y=value,fill=Treatment))+stat_boxplot(geom ='errorbar')+geom_boxplot()+facet_wrap(~variable,scale="free")+ggtitle("Boxplot of Penflufen Mallard Data")
+print(p)
+```
+
+```{r eval=FALSE,include=FALSE}
+require(reshape2)
+lMallard <- melt(Mallard,id.vars=1:3)
+label <- getlabel(lMallard)
+require(ggplot2)
+p <- ggplot(data=lMallard,aes(x=Treatment,y=value,fill=Treatment,label=label))+stat_boxplot(geom ='errorbar')+geom_boxplot()+geom_point(pch=".")+facet_wrap(~variable,scales="free")+ggtitle("Boxplot of Penflufen Mallard Data")+geom_text(aes(x=Treatment,size=0.5),hdjust=-5,vdjust=1,alpha=0.5,position=position_jitter(width=0, height=0.1))
+print(p)
+require(lattice)
+bwplot(value~Treatment|variable,data=lMallard,scales=list(abbreviate=TRUE,y=list(relation="free")),par.settings=list(box.rectangle = list(fill= c('red','green','blue','purple')),                                                                                                                     superpose.polygon=list(col=c("red",'green',"blue","purple"))), 
+panel=function(x,y,...){
+panel.bwplot(x,y,...)
+panel.stripplot(x,y,pch=".",...)
+},
+auto.key = list(points = FALSE,rectangles = TRUE, space="top",title="Treatment"))
+lapply(4:19,function(i) boxplot(Mallard[,i])~Mallard$Treatment)
+```
+
+
+--- &twocol w1:70% w2:30%
+
+## Penflufen
+
+### 3. Identify outliers and do further calculations.
+
+*** =left
+
+```{r echo=FALSE,cache=FALSE}
+options(width = 28)
+```
+
+```{r echo=FALSE,warning=FALSE,include=TRUE,fig.show='animate',fig.align='center',aniopts="controls"}
+
+endpoints <- names(Mallard)[4:19]
+for(i in 4:19){
+boxplot.with.outlier.label(Mallard[,i]~Mallard$Treatment,label_name=Mallard[!is.na(Mallard[,i]),"Cage No."],push_text_right = 1.5,main=endpoints[i-3],range=c(1.5,2.5))
+}
+```
+
+*** =right
+
+```{r eval=FALSE,include=TRUE}
+
+endpoints <- names(Mallard)[4:19]
+for(i in 4:19){
+boxplot.with.outlier.label(Mallard[,i]~Mallard$Treatment,label_name=Mallard[!is.na(Mallard[,i]),"Cage No."],push_text_right = 1.5,main=endpoints[i-3],range=c(1.5,2.5))
+}
+```
+
+```{r eval=FALSE,include=FALSE}
+y <- c(4, 0, 7, -5, rnorm(16))
+x1 <- c("a", "a", "b", "b", sample(letters[1:2], 16, T))
+lab_y <- sample(letters, 20)
+boxplot(y~x1)
+identify(as.integer(as.factor(x1)), y, labels = lab_y, cex = 0.7)
+```
+
+```{r notworkingyet,eval=FALSE,include=FALSE}
+boxplot.with.outlier.label(Mallard[,"Eggs Laid"]~Treatment,data=Mallard,label_name=Mallard[,"Cage No."],push_text_right = 1,main="Eggs Laid",range=c(1.5,2.5))
+
+endpoints <- names(Mallard)[4:19]
+pdf("Mallard_boxplot.pdf")
+for(i in 4:19){
+boxplot.with.outlier.label(Mallard[,i]~Mallard$Treatment,label_name=Mallard[!is.na(Mallard[,i]),"Cage No."],push_text_right = 1.5,main=endpoints[i-3],range=c(1.5,2.5))
+}
+dev.off()
+require(lattice)
+windows()
+
+par(mfrow=c(4,4))
+for(i in 4:19){
+boxplot.with.outlier.label(Mallard[,i]~Mallard$Treatment,label_name=Mallard[!is.na(Mallard[,i]),"Cage No."],push_text_right = 1.5,main=endpoints[i-3],range=c(1.5,2.5))
+}
+
+
+
+bwplot(value~Treatment|variable,data=lMallard,scales=list(abbreviate=TRUE,y=list(relation="free")),par.settings=list(box.rectangle = list(fill= c('red','green','blue','purple')),                                                                                                                     superpose.polygon=list(col=c("red",'green',"blue","purple"))), 
+panel=function(x,y,...){
+#boxplot.with.outlier.label(y~x,label_name=lMallard[lMallard$variable==levels(lMallard$variable)[panel.number()],"Cage No."],plot=T,...)
+#panel.bwplot(x,y,...)
+panel.stripplot(x,y,pch=".",...)
+browser()
+
+},
+auto.key = list(points = FALSE,rectangles = TRUE, space="top",title="Treatment"))
+```
+
+--- .class #id 
+
+## Penflufen
+
+### 3. Identify outliers and do further calculations.
+
+
+--- &twocol w1:70% w2:30%
+
+## Penflufen
+
+*** =left
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+Mallard$"Hatchling biomass" <- Mallard$"Number of Hatchlings"*Mallard$"Hatchling wt"
+pathway <- c("Eggs Laid","Eggs Set","Viable Embryos","Live 3wk Embryos","Number of Hatchlings", "14 d old survivors")
+female <- c("Initial female wt","Eggs Laid","Food consumption (mean g/bird/day)","Hatchling biomass")
+corplot(Mallard[,pathway],diag=TRUE,main="Correlation Between the egg pathways",pcol=as.numeric(as.factor(Mallard$Treatment))+3)#,g=Mallard$Treatment,pcol=Mallard$Treatment)
+```
+
+*** =right
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+corplot(Mallard[,female],diag=FALSE,main="Correlation between the hatchling \nbiomass and other factors",g=Mallard$Treatment,pcol=as.numeric(as.factor(Mallard$Treatment))+3)
+
+```
+
+--- .class #id
+
+## Summary Tables for Penflufen
+
+```{r,include=FALSE}
+outtab <-outlier.summary.one(Mallard,endpoints=c(4,6:19))
+
+```
+
+```{r,echo=FALSE,results='asis'}
+#pandoc.table((outtab[1:6,c(1,2,3:9)]),style="grid")
+pandoc.table(outtab[1:12,c(1,2,10:11)],style="rmarkdown")
+```
+
+
+
+
+--- .class #id 
+
+## Control and NOEC data for 14 BCS studies
+
+### 1. Graphical overview of the data by Study
+
+```{r echo=FALSE,warning=FALSE,include=TRUE,fig.show='animate',fig.align='center',aniopts="controls",fig.width=14}
+data <- subset(lBCS,Treatment=="A"|NOEC==1)
+for(i in 1:16){
+edata <- subset(data,variable==endpoints[i])
+edata$Level <- factor(edata$NOEC)
+levels(edata$Level) <- c("control","NOEC")
+p <- ggplot(edata,aes(x=Study,y=value,fill=Level))+geom_boxplot()+ggtitle(endpoints[i])
+print(p)
+}
+```
+
+```{r eval=FALSE,echo=FALSE,warning=FALSE,include=TRUE,fig.show='animate',fig.align='center',aniopts="controls",fig.width=16}
+
+endpoints <- names(hBCS)[5:20]
+cache("endpoints")
+pdf("historic_control_NOEC_boxplot.pdf",width=16)
+par(mfrow=c(2,1))
+for(i in 1:16){
+boxplot.with.outlier.label(hBCS[hBCS$Treatment=="A",endpoints[i]]~hBCS$Study[hBCS$Treatment=="A"],label_name=hBCS[!is.na(hBCS[,endpoints[i]])&(hBCS$Treatment=="A"),"Cage No."],push_text_right = 1.9,main=paste(endpoints[i],"in control"),range=c(1.5,2.5))
+boxplot.with.outlier.label(hBCS[hBCS$NOEC,endpoints[i]]~hBCS$Study[hBCS$NOEC],label_name=hBCS[!is.na(hBCS[,endpoints[i]])&(hBCS$NOEC),"Cage No."],push_text_right = 1.9,main=paste(endpoints[i],"at NOEC level"),range=c(1.5,2.5))
+}
+dev.off()
+pdf("historic_control_NOEC_boxplot_gg.pdf",width=16)
+data <- subset(lBCS,Treatment=="A"|NOEC==1)
+for(i in 1:16){
+edata <- subset(data,variable==endpoints[i])
+edata$Level <- factor(edata$NOEC)
+levels(edata$Level) <- c("control","NOEC")
+p <- ggplot(edata,aes(x=Study,y=value,fill=Level))+geom_boxplot()+ggtitle(endpoints[i])
+print(p)
+}
+dev.off()
+
+pdf("historic_Mallard.pdf",width=16)
+data <- lBCS
+for(i in 1:16){
+edata <- subset(data,variable==endpoints[i])
+p <- ggplot(edata,aes(x=Study,y=value,fill=Treatment))+geom_boxplot()+ggtitle(endpoints[i])
+print(p)
+}
+dev.off()
+
+```
+
+--- .class #id 
+
+## Control and NOEC data for 14 BCS Studies
+
+### 2. Outliers in combined historic data.
+
+```{r echo=FALSE,warning=FALSE,include=TRUE,fig.show='animate',fig.align='center',aniopts="controls",fig.width=10}
+#pdf("historic_control_NOEC_pool.pdf")
+data <- subset(lBCS,Treatment=="A"|NOEC==1)
+for(i in 1:16){
+edata <- subset(data,variable==endpoints[i])
+edata$Level <- factor(edata$NOEC)
+levels(edata$Level) <- c("control","NOEC")
+boxplot.with.outlier.label(edata[edata$variable==endpoints[i],"value"]~edata[,"Level"],label_name=edata[!is.na(edata[edata$variable==endpoints[i],"value"]),"Cage No."],push_text_right = 1.9,main=paste(endpoints[i],"(pooled data)"),range=c(1.5,2.5))
+}
+##dev.off()
+```
+
+
+--- .class #id 
+
+## Control and NOEC data for 14 BCS studies
+
+### 3. Summary table of the outlier information
+
+Suppose we have three studies $S_1, S_2, S_3$ with $n_1=15,n_2=16,n_3=15$ pairs respectively. Using boxplot stats for each study, we identified $o_1=0$ outliers in $S_1$, $o_2=1$ outliers in $S_2$, $o_3=3$ outliers in $S_3$. Using boxplot stats for all three studies pooled together, we identified $op_1=0$ outliers in $S_1$, $op_2=1$ outliers in $S_2$, $op_3=0$ outliers in $S_3$. 
+
+|       Types of Summary Statistics      |       Pooling Studies  |  Each Study Seperately  |
+|:--------------------------------------:|:----------------------:|:-----------------------:|
+| N1= # of studies with outlier pairs    |    1                   |      2                  |  
+| N2= # of outlier pairs                 |    $op_1+op_2+op_3$    |     $o_1+o_2+o_3$       |  
+| F1= % of studies with outlier pairs    |    $1/3*100$           |    $2/3*100 $           |  
+| F2= % of all outlier pairs in all pairs|    $\frac{op_1+op_2+op_3}{n_1+n_2+n_3}$    |     $\frac{o_1+o_2+o_3}{n_1+n_2+n_3}$       |  
+| F3= average % of outliers in each study|    $(\frac{op_1}{n_1}+\frac{op_2}{n_2}+\frac{op_3}{n_3})/3*100$    |     $(\frac{o_1}{n_1}+\frac{o_2}{n_2}+\frac{o_3}{n_3})/3*100$       |  
+
+
+--- .class #id 
+
+## Control and NOEC data for 14 BCS Studies
+
+### 3. Outlier pairs information for historical control data.
+
+```{r include=FALSE,eval=FALSE}
+## * http://stackoverflow.com/questions/10220510/summary-statistics-by-two-or-more-factor-variables
+## * http://nsaunders.wordpress.com/2010/08/20/a-brief-introduction-to-apply-in-r/
+pdf("historic.Mallard.detail.pdf",width=10)
+lBCS.out.sep <- outlier.summary.multiple(lBCS)
+dev.off()
+pdf("historic.Mallard.pool.pdf",width=16)
+lBCS.out.pool <- outlier.summary.multiple(lBCS,pool=TRUE)
+dev.off()
+lBCS$olabel <- lBCS.out.sep$olabel
+lBCS$oplabel <- lBCS.out.pool$oplabel
+lBCS.label <- lBCS
+cache("lBCS.label")
+to.ctr <- outlier.table(lBCS.label,level=1)
+cache("to.ctr")
+to.NOEC <- outlier.table(lBCS.label,level=as.numeric(Dose)+1)
+cache("to.NOEC")
+```
+
+```{r results='asis',echo=FALSE,cache=FALSE}
+## could use ftable too!
+pandoc.table((to.ctr0[1:10,]),style="rmarkdown",split.tables = 200)
+
+```
+
+*** pnotes
+Summary tables of the outliers
+
+--- .class #id
+
+## Control and NOEC data for 14 BCS Studies
+
+### 3. Outliers information for historical NOEC data.
+
+```{r results='asis',echo=FALSE}
+pandoc.table((to.NOEC0[1:10,]),style="rmarkdown",split.tables = 200)
+```
+
+
+--- &twocol w1:40% w2:60%
+
+## Control and NOEC data for 14 BCS Studies
+
+### 4. Correlation between eggpath endpoints: 
+
+*** =left
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+hBCS$"Hatchling biomass" <- hBCS$"Number of Hatchlings"*hBCS$"Hatchling wt"
+pathway <- c("Eggs Laid","Eggs Set","Viable Embryos","Live 3wk Embryos","Number of Hatchlings", "14 d old survivors")
+female <- c("Initial female wt","Eggs Laid","Food consumption (mean g/bird/day)","Hatchling biomass")
+corplot(hBCS[hBCS$Treatment=="A",pathway],diag=TRUE,main="Correlation Between the egg pathways")#,g=hBCS$Treatment,pcol=hBCS$Treatment)
+```
+
+*** =right
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+corplot(hBCS[hBCS$NOEC==1,pathway],diag=TRUE,main="Correlation Between the egg pathways")#,g=hBCS$Treatment,pcol=hBCS$Treatment)
+
+```
+
+## Control and NOEC data for 14 BCS Studies
+
+### 4. Correlation between hatchling biomass and other factors:
+
+*** =left
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+corplot(hBCS[hBCS$Treatment=="A",female],diag=FALSE,main="Correlation between the hatchling \nbiomass and other factors",g=hBCS$Treatment)
+```
+
+*** =right
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+corplot(hBCS[hBCS$NOEC==1,female],diag=FALSE,main="Correlation between the hatchling \nbiomass and other factors",g=hBCS$Treatment)
+
+```
+
+--- &twocol w1:40% w2:60%
+
+## Control and NOEC data for 14 BCS Studies
+
+### 4. Correlation in all treatment groups: 
+
+*** =left
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+hBCS$"Hatchling biomass" <- hBCS$"Number of Hatchlings"*hBCS$"Hatchling wt"
+pathway <- c("Eggs Laid","Eggs Set","Viable Embryos","Live 3wk Embryos","Number of Hatchlings", "14 d old survivors")
+female <- c("Initial female wt","Eggs Laid","Food consumption (mean g/bird/day)","Hatchling biomass")
+corplot(hBCS[,pathway],diag=TRUE,main="Correlation Between the egg pathways",pcol=as.numeric(as.factor(hBCS$Treatment))+3)#,g=hBCS$Treatment,pcol=hBCS$Treatment)
+```
+
+*** =right
+
+```{r echo=FALSE,dev='svg',fig.width=5,fig.height = 5}
+corplot(hBCS[,female],diag=FALSE,main="Correlation between the hatchling \nbiomass and other factors",g=hBCS$Treatment,pcol=as.numeric(as.factor(hBCS$Treatment))+3)
+
+```
+
+*** pnotes
+
+transition with high success rates vs transitions with lower success rates
+
+
+--- .class #id 
+
+## Appendix A: Methods of Statistical Outlier Analysis
+
+* Charts: extreme values.
+* Local Outlier Factor(LOF): the points in a much sparser region than their neighbors.
+* Clustering: subjects not assigned to any clusters.
+* Statistical Tests/Model Based Methods
+* The Lund test for outliers was based on fitting the linear model
+* Grubbs' test is based on the assumption of normality.
+* Dixon's test allows us to examine if one (and only one) observation from a small set of replicate observations (typically 3 to 25) can be "legitimately" rejected or not.
+* Bonferroni Outlier Test reports the Bonferroni p-values for Studentized residuals in linear and generalized linear models, based on a t-test for linear models and normal-distribution test for generalized linear models.
+
+* Others
+
+--- .class #id 
+
+## Lund test
+
+The Lund test for outliers was based on fitting the linear model (See Lund, R. E. 1975). Lund suggested to test the studentized residuals against an appropriate t-value (the residuals are assumed as approximately distributed according to a Student's t-distribution). He suggests to test with a Bonferroni adjusted alpha, i.e. with quantile of the t-distribution qt((1-alpha/(2*n)),df) where n is the number of residuals and df the error degrees of freedom. This is similar to Bonferroni-adjusted outlier test.
+
+
+--- .class #id
+
+
+## Grubb's test
+
+Grubbs' test is based on the assumption of normality. That is, one should first verify that the data can be reasonably approximated by a normal distribution before applying the Grubbs' test. The general formula for Grubbs' test statistic is defined as:
+
+$$G=\frac{\max(x_i-\bar x)}{s}$$
+
+The Grubbs test statistic is the largest absolute deviation from the sample mean in units of the sample standard deviation. 
+
+
+--- .class #id
+
+
+## Dixon's test
+
+Dixon's test allows us to examine if one (and only one) observation from a small set of replicate observations (typically 3 to 25) can be "legitimately" rejected or not. 
+
+The test is very simple and it is applied as follows:
+
+1. The N values comprising the set of observations under examination are arranged in ascending order: $x_1 < x_2 < . . . < x_N$
+
+2. The statistic experimental Q-value (Qexp) is calculated. This is a ratio defined as the difference of the suspect value from its nearest one divided by the range of the values (Q: rejection quotient). Thus, for testing $x_1$ or $x_N$ (as possible outliers) we use the following Qexp values:
+
+$$
+Q_N=\frac{X_N-X_{N-1}}{X_N-X_1}
+$$
+$$ Q_1=\frac{X_2-X_1}{X_N-X_1}
+$$
+
+(3) The obtained Qexp value is compared to a critical Q-value (Qcrit) found in tables. This critical value should correspond to the confidence level (CL) we have decided to run the test (usually: CL=95%).
+
+Note: Q-test is a significance test. For more information on terms and concepts related to significance tests (e.g. null hypothesis, confidence levels, probabilities of type I and type II errors), see the applet: Student's t-test:  Comparison of two means.
+
+(4) If Qexp > Qcrit, then the suspect value can be characterized as an outlier and it can be rejected, if not, the suspect value must be retained and used in all subsequent calculations.
+
+The  null hypothesis associated to Q-test is as follows: "There is no a significant difference between the suspect value and the rest of them, any differences must be exclusively attributed to random errors".
+
+--- .class #id
+
+
+## Bonferroni Outlier Test
+
+Bonferroni Outlier Test reports the Bonferroni p-values for Studentized residuals in linear and generalized linear models, based on a t-test for linear models and normal-distribution test for generalized linear models.
+
+Since we are selecting the furthest outlier, it is not legitimate to use a simple t-test. We would expect that 5% of the studentized
+residuals would be beyond t.025± 2 by chance alone. To remedy this we can make a Bonferroni adjustment to the p-value. The Bonferroni p-value for the largest outlier is $p=2np_0$, where $p_0$ is the unadjusted p-value from a t-test with $n-k-2$ degrees of freedom.
+
+Note that  we could also fit a random intercept model instead of a fixed effect model.
+
+--- .class #id
+
+## Other Outlier Detection Methods
+
+The methods listed in the following may be overshoots for our problem.
+
+* Distribution-based:
+Using a subset of the data, the parameters for a model distribution are estimated using regression of the sorted data on their QQ-plot positions. A value in the data is an outlier when it is unlikely to be drawn from the estimated distribution. There are two methods to determine the "unlikelyness". The first, called "Method I", determines the value above which less than $\rho$ observations are expected, given the total number of observations in the data. Here $\rho$ is a parameter which should have a value of 1 or less. The second notion of unlikelyness uses the fit residuals. Extremely large or small values are outliers when their residuals are above or below a confidence limit, to be determined by the researcher.
+* Quantile Regression Methods
+* Multivariate methods based on ordered robust mahalanobis distances.
+* Train an unsupervised Random Forest on the data and use the object proximity measure to detect outliers  [link](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#outliers)
+* Multivariate robust estimators[link](http://cran.r-project.org/web/packages/rrcov/vignettes/rrcov.pdf)
+* and more!
+
+--- .class #id 
+
+## Appendix B: Outlier Treatment
+
+If there are outliers, what do we do?
+
+1. Learn as much as you can about the "story" behind the data and understand why there is an outlier.
+
+2. Find a method that is not sensitive to outliers. For example, alternatives to Pearson's correlation coefficient include Spearman's rank correlation coefficient and Kendall's coefficient of concordance , although neither of them works any better here. In cases where the cause of the outliers is known, it may be possible to incorporate this effect into the model structure, for example by using a hierarchical Bayes model or a mixture model
+
+3. Adjust the outliers when appropriate (data trimming).
+
+4. If all else fails, eliminate the outlier(s).
+
+
+--- .class #id
+
+```{r eval=FALSE}
+setwd("mydeck")
+require(slidify)
+slidify("mydeck/index.Rmd")
+```
+
